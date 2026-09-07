@@ -108,6 +108,7 @@ The automated pipeline performs the following steps:
    - Builds release APK with signing fallback for CI (`class_timetable-android-release.apk`).
 3. **Web Build & GitHub Pages Deployment**:
    - Builds Flutter web with custom repository base href.
+   - Includes custom `404.html` with automatic route recovery and responsive fallback interface.
    - Automatically deploys the latest web app live to **GitHub Pages**.
    - Archives a portable web bundle (`class_timetable-web.zip`).
 4. **Automatic GitHub Release**:
@@ -166,6 +167,9 @@ class_timetable/
 │       ├── file_saver_io.dart    # Desktop / Mobile file saver implementation
 │       ├── file_saver_stub.dart  # Fallback stub
 │       └── file_saver_web.dart   # Web file download implementation
+├── web/                   # Web platform assets, manifest, and 404 error fallback
+│   ├── 404.html           # GitHub Pages 404 error and recovery handler
+│   └── index.html         # Flutter web bootstrap
 ├── windows/               # Windows native desktop runner (C++/CMake)
 ├── pubspec.yaml           # Flutter dependencies and metadata
 ├── LICENSE                # MIT License

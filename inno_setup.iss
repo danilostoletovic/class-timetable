@@ -2,7 +2,9 @@
 ; Inno Setup 6.x
 
 #define MyAppName "Class Timetable"
-#define MyAppVersion "1.0.1"
+#ifndef MyAppVersion
+  #define MyAppVersion "1.0.1"
+#endif
 #define MyAppPublisher "Danilo Stoletovic"
 #define MyAppExeName "class_timetable.exe"
 #define BuildOutputDir "build\windows\x64\runner\Release"

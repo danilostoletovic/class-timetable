@@ -35,14 +35,40 @@ jobs:
       - name: Compile Inno Setup Installer
         shell: pwsh
         run: |
+          $tag = "${{ github.ref_name }}"
+          if ($tag -match '^v?(\d+\.\d+\.\d+.*)$') {
+            $version = $matches[1]
+          } else {
+            $pubMatch = Get-Content pubspec.yaml | Select-String -Pattern '^version:\s*([^\+\s]+)'
+            $version = if ($pubMatch) { $pubMatch.Matches.Groups[1].Value } else { "1.0.1" }
+          }
+          Write-Host "Compiling Inno Setup installer for version: $version"
+
+          New-Item -ItemType Directory -Force -Path "release" | Out-Null
+
+          $isccPath = $null
           if (Get-Command iscc -ErrorAction SilentlyContinue) {
-            iscc inno_setup.iss
+            $isccPath = "iscc"
           } elseif (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
-            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" inno_setup.iss
+            $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+          } elseif (Test-Path "C:\Program Files\Inno Setup 6\ISCC.exe") {
+            $isccPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
           } else {
             choco install innosetup --yes
-            & "C:\Program Files (x86)\Inno Setup 6\ISCC.exe" inno_setup.iss
+            if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
+              $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
+            } elseif (Test-Path "C:\Program Files\Inno Setup 6\ISCC.exe") {
+              $isccPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
+            } elseif (Get-Command iscc -ErrorAction SilentlyContinue) {
+              $isccPath = "iscc"
+            }
           }
+
+          if (-not $isccPath) {
+            throw "ISCC (Inno Setup Compiler) could not be located."
+          }
+
+          & $isccPath "/DMyAppVersion=$version" inno_setup.iss
 
       - name: Create Portable Windows ZIP
         shell: pwsh
@@ -120,6 +146,9 @@ jobs:
       - name: Build Web
         run: |
           flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+          if [ -f "web/404.html" ] && [ ! -f "build/web/404.html" ]; then
+            cp web/404.html build/web/404.html
+          fi
 
       - name: Create Web ZIP Bundle
         run: |
