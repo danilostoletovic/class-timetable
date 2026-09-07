@@ -9,6 +9,33 @@ A modern, fast, and feature-packed class timetable application built with **Flut
 
 ---
 
+## 📱 Cross-Platform Showcase
+
+Experience a unified, responsive Material 3 interface seamlessly across desktop, web, and mobile platforms:
+
+### 🖥️ Windows Desktop
+*Native Windows desktop runner with Material 3 UI and Inno Setup installer*
+
+<p align="center">
+  <a href="assets/win.png"><img src="assets/win.png" alt="Windows Desktop App" width="100%"/></a>
+</p>
+
+### 🌐 Web Browser
+*Live Single-Page Application hosted on GitHub Pages*
+
+<p align="center">
+  <a href="assets/web.png"><img src="assets/web.png" alt="Web Browser App" width="100%"/></a>
+</p>
+
+### 📱 Android Mobile
+*Optimized mobile interface for on-the-go schedule tracking*
+
+<p align="center">
+  <a href="assets/android.jpg"><img src="assets/android.jpg" alt="Android Mobile App" width="380"/></a>
+</p>
+
+---
+
 ## ✨ Features
 
 - **🔄 Multi-Week Rotation Schedules**: Configure rotation cycles from 1 up to 8 weeks (e.g., Week A / Week B or Odd / Even weeks) with automatic calendar date calculation and customizable reference start date.
@@ -158,7 +185,11 @@ class_timetable/
 │   └── workflows/
 │       └── release.yml    # Automated build, release & GitHub Pages deployment
 ├── android/               # Android native configuration & Gradle scripts
-├── assets/                # App icons and media assets
+├── assets/                # App icons, screenshots & media assets
+│   ├── android.jpg        # Android mobile screenshot showcase
+│   ├── app_icon.png       # Application icon
+│   ├── web.png            # Web browser screenshot showcase
+│   └── win.png            # Windows desktop screenshot showcase
 ├── inno_setup.iss         # Windows Inno Setup installer compilation script
 ├── lib/
 │   ├── main.dart          # Primary application UI, models, and logic
