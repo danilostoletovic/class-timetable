@@ -1,91 +1,16 @@
-name: Build, Release & Deploy
+name: Build and Release Android APK and AAB
 
 on:
   push:
     tags:
       - 'v*'
-  workflow_dispatch:
 
 permissions:
   contents: write
 
 jobs:
-  build-windows:
-    name: Build Windows & Package (Inno Setup)
-    runs-on: windows-latest
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Run tests
-        run: flutter test
-
-      - name: Build Windows release
-        run: flutter build windows --release
-
-      - name: Compile Inno Setup Installer
-        shell: pwsh
-        run: |
-          $tag = "${{ github.ref_name }}"
-          if ($tag -match '^v?(\d+\.\d+\.\d+.*)$') {
-            $version = $matches[1]
-          } else {
-            $pubMatch = Get-Content pubspec.yaml | Select-String -Pattern '^version:\s*([^\+\s]+)'
-            $version = if ($pubMatch) { $pubMatch.Matches.Groups[1].Value } else { "1.0.1" }
-          }
-          Write-Host "Compiling Inno Setup installer for version: $version"
-
-          New-Item -ItemType Directory -Force -Path "release" | Out-Null
-
-          $isccPath = $null
-          if (Get-Command iscc -ErrorAction SilentlyContinue) {
-            $isccPath = "iscc"
-          } elseif (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
-            $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-          } elseif (Test-Path "C:\Program Files\Inno Setup 6\ISCC.exe") {
-            $isccPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
-          } else {
-            choco install innosetup --yes
-            if (Test-Path "C:\Program Files (x86)\Inno Setup 6\ISCC.exe") {
-              $isccPath = "C:\Program Files (x86)\Inno Setup 6\ISCC.exe"
-            } elseif (Test-Path "C:\Program Files\Inno Setup 6\ISCC.exe") {
-              $isccPath = "C:\Program Files\Inno Setup 6\ISCC.exe"
-            } elseif (Get-Command iscc -ErrorAction SilentlyContinue) {
-              $isccPath = "iscc"
-            }
-          }
-
-          if (-not $isccPath) {
-            throw "ISCC (Inno Setup Compiler) could not be located."
-          }
-
-          & $isccPath "/DMyAppVersion=$version" inno_setup.iss
-
-      - name: Create Portable Windows ZIP
-        shell: pwsh
-        run: |
-          Compress-Archive -Path "build\windows\x64\runner\Release\*" -DestinationPath "class_timetable-windows-portable.zip"
-
-      - name: Upload Windows Artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: windows-release
-          path: |
-            release/*.exe
-            class_timetable-windows-portable.zip
-          if-no-files-found: error
-
   build-android:
-    name: Build Android APK
+    name: Build signed Android APK and AAB
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -103,104 +28,64 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Configure existing release signing
+        shell: python
+        run: |
+          import re
+          from pathlib import Path
+
+          # Use the existing repository keystore and its documented credentials.
+          credentials = Path('keystore/README.md').read_text(encoding='utf-8')
+
+          def credential(label):
+              match = re.search(r'\*\*' + re.escape(label) + r'\*\*: `([^`]+)`', credentials)
+              if not match:
+                  raise SystemExit(f'Missing signing credential: {label}')
+              return match.group(1)
+
+          keystore = Path('keystore/upload-keystore.jks').resolve()
+          if not keystore.is_file():
+              raise SystemExit('Release keystore is missing')
+
+          def property_value(value):
+              return value.replace('\\', '\\\\').replace('\n', '\\n').replace('\r', '\\r')
+
+          properties = {
+              'storeFile': keystore.as_posix(),
+              'storePassword': credential('Store Password'),
+              'keyAlias': credential('Key Alias'),
+              'keyPassword': credential('Key Password'),
+          }
+          Path('android/key.properties').write_text(
+              ''.join(f'{key}={property_value(value)}\n' for key, value in properties.items()),
+              encoding='utf-8',
+          )
+
       - name: Install dependencies
         run: flutter pub get
 
       - name: Build Android APK
         run: flutter build apk --release
 
-      - name: Prepare APK artifact
-        run: |
-          cp build/app/outputs/flutter-apk/app-release.apk class_timetable-android-release.apk
+      - name: Build Android App Bundle
+        run: flutter build appbundle --release
 
-      - name: Upload Android Artifact
+      - name: Prepare Android artifacts
+        run: |
+          mkdir -p release
+          cp build/app/outputs/flutter-apk/app-release.apk release/class_timetable-android-release.apk
+          cp build/app/outputs/bundle/release/app-release.aab release/class_timetable-android-release.aab
+
+      - name: Upload Android artifacts
         uses: actions/upload-artifact@v4
         with:
           name: android-release
-          path: class_timetable-android-release.apk
+          path: |
+            release/class_timetable-android-release.apk
+            release/class_timetable-android-release.aab
           if-no-files-found: error
-
-  build-web-and-deploy:
-    name: Build Web & Deploy to GitHub Pages
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pages: write
-      id-token: write
-    environment:
-      name: github-pages
-      url: ${{ steps.deployment.outputs.page_url }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Setup Flutter
-        uses: subosito/flutter-action@v2
-        with:
-          channel: 'stable'
-          cache: true
-
-      - name: Install dependencies
-        run: flutter pub get
-
-      - name: Build Web
-        run: |
-          flutter build web --release --base-href "/${{ github.event.repository.name }}/"
-          if [ -f "web/404.html" ] && [ ! -f "build/web/404.html" ]; then
-            cp web/404.html build/web/404.html
-          fi
-
-      - name: Create Web ZIP Bundle
-        run: |
-          cd build/web
-          zip -r ../../class_timetable-web.zip .
-          cd ../..
-
-      - name: Upload Web Artifact for Release
-        uses: actions/upload-artifact@v4
-        with:
-          name: web-release
-          path: class_timetable-web.zip
-          if-no-files-found: error
-
-      - name: Setup Pages
-        uses: actions/configure-pages@v5
-
-      - name: Upload Pages Artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: 'build/web'
-
-      - name: Deploy to GitHub Pages
-        id: deployment
-        uses: actions/deploy-pages@v4
-
-  create-release:
-    name: Create GitHub Release
-    needs: [build-windows, build-android, build-web-and-deploy]
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@v4
-
-      - name: Download all artifacts
-        uses: actions/download-artifact@v4
-        with:
-          path: artifacts
-
-      - name: Organize release assets
-        run: |
-          mkdir -p release_assets
-          find artifacts -type f -name "*.exe" -exec cp {} release_assets/ \;
-          find artifacts -type f -name "*.zip" -exec cp {} release_assets/ \;
-          find artifacts -type f -name "*.apk" -exec cp {} release_assets/ \;
-          echo "Assets ready for release:"
-          ls -la release_assets/
 
       - name: Publish GitHub Release
-        if: startsWith(github.ref, 'refs/tags/v')
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.ref_name }}
@@ -208,4 +93,11 @@ jobs:
           generate_release_notes: true
           draft: false
           prerelease: false
-          files: release_assets/*
+          fail_on_unmatched_files: true
+          files: |
+            release/class_timetable-android-release.apk
+            release/class_timetable-android-release.aab
+
+      - name: Clean up signing configuration
+        if: always()
+        run: rm -f android/key.properties
