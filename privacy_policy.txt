@@ -1,0 +1,23 @@
+Privacy Policy for Class Timetable
+
+Effective date: November 5, 2026
+
+Class Timetable, developed by Danilo Stoletovic, is designed to work locally on your device.
+
+Data collection
+The app does not collect, transmit, sell, or share personal information. It does not require an account and does not use advertising, analytics, or tracking services.
+
+Local storage and files
+Your timetable, notes, colors, and schedule settings are stored locally on your device. If you use Backup & restore, the app reads or saves a JSON backup only when you choose a file or start the save action. The backup remains under your control and is not uploaded by the app.
+
+Permissions
+The app may request notification permission for features provided by the app. It does not request access to your contacts, location, camera, microphone, or accounts.
+
+Children
+The app is not directed at collecting information from children and does not knowingly collect personal information from anyone.
+
+Data deletion
+You can remove locally stored app data by clearing the app's storage or uninstalling the app. Files you exported are managed separately by you and must be deleted from their storage location.
+
+Changes and contact
+This policy may be updated when the app changes. For privacy questions, contact the developer through the contact details on the Class Timetable Google Play listing.
